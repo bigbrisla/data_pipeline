@@ -1,0 +1,4 @@
+google-cloud-bigquery==3.46.2
+google-cloud-storage==3.17.1
+python-dotenv==1.2.4
+requests==2.34.2
