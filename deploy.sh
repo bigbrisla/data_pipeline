@@ -10,8 +10,17 @@ SA_NAME=pipeline-runner
 SA=${SA_NAME}@${GCP_PROJECT}.iam.gserviceaccount.com
 ENV_VARS="GCP_PROJECT=${GCP_PROJECT},GCS_BUCKET=${GCS_BUCKET},BUDGET_SHEET_ID=${BUDGET_SHEET_ID},BUDGET_SHEET_GID=${BUDGET_SHEET_GID},META_MOCK_SHEET_ID=${META_MOCK_SHEET_ID},META_MOCK_SHEET_GID=${META_MOCK_SHEET_GID}"
 
-gcloud services enable run.googleapis.com cloudscheduler.googleapis.com cloudbuild.googleapis.com \
+IMAGE=${REGION}-docker.pkg.dev/${GCP_PROJECT}/pipeline/pipeline:latest
+
+gcloud services enable run.googleapis.com cloudscheduler.googleapis.com artifactregistry.googleapis.com \
   --project "$GCP_PROJECT"
+
+gcloud artifacts repositories create pipeline --repository-format docker --location "$REGION" \
+  --project "$GCP_PROJECT" || true
+gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin "https://${REGION}-docker.pkg.dev"
+# Cloud Run gira su amd64, anche se il Mac è arm64
+docker build --platform linux/amd64 -t "$IMAGE" .
+docker push "$IMAGE"
 
 gcloud iam service-accounts create "$SA_NAME" --project "$GCP_PROJECT" || true
 
@@ -22,9 +31,9 @@ for role in roles/bigquery.dataEditor roles/bigquery.jobUser roles/storage.objec
 done
 
 deploy_job() {
-  gcloud run jobs deploy "$1" --source . --region "$REGION" --project "$GCP_PROJECT" \
+  gcloud run jobs deploy "$1" --image "$IMAGE" --region "$REGION" --project "$GCP_PROJECT" \
     --service-account "$SA" --set-env-vars "$ENV_VARS" --max-retries 2 --task-timeout 30m \
-    --args "$2"
+    --command="python,-m,$2" --args=""
 }
 
 schedule_job() {

@@ -5,5 +5,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY pipeline ./pipeline
 
-ENTRYPOINT ["python", "-m"]
-CMD ["pipeline.meta"]
+CMD ["python", "-m", "pipeline.meta"]
